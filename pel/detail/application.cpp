@@ -1,7 +1,9 @@
 #include "application.hpp"
 //
 #include "../camera.hpp"
+#include "../model.hpp"
 #include "../shader.hpp"
+#include "../stl_loader.hpp"
 
 namespace application {
 
@@ -28,37 +30,36 @@ bool view_should_update = true;
 
 camera cam{};
 
-constexpr struct {
-  float x, y;     // 2D Position
-  float r, g, b;  // Color
-} vertices[3] = {
-    {-0.6f, -0.4f, /**/ 1.f, 0.0f, 0.0f},
-    {0.6f, -0.4f, /**/ 0.0f, 1.f, 0.0f},
-    {0.0f, 0.6f, /**/ 0.0f, 0.0f, 1.f},
-};
-
-constexpr czstring vertex_shader_text =
+static constexpr czstring vertex_shader_text =
     "#version 330 core\n"
-    "uniform mat4 MVP;"
-    "attribute vec3 vCol;"
-    "attribute vec2 vPos;"
-    "out vec3 color;"
+
+    "uniform mat4 projection;"
+    "uniform mat4 view;"
+
+    "in vec3 p;"
+    "in vec3 n;"
+
+    "out vec3 normal;"
+
     "void main(){"
-    "  gl_Position = MVP * vec4(vPos, 0.0, 1.0);"
-    "  color = vCol;"
+    "  gl_Position = projection * view * vec4(p, 1.0);"
+    "  normal = n;"
     "}";
 
-constexpr czstring fragment_shader_text =
+static constexpr czstring fragment_shader_text =
     "#version 330 core\n"
-    "in vec3 color;"
+
+    "uniform vec3 light_dir;"
+
+    "in vec3 normal;"
+
     "void main(){"
-    "  gl_FragColor = vec4(color, 1.0);"
+    "  float light = max(-dot(light_dir, normalize(normal)), 0.0);"
+    "  gl_FragColor = vec4(0.5 * vec3(light) + 0.5, 1.0);"
     "}";
 
-GLuint vertex_array;
-GLuint vertex_buffer;
-shader_program shader;
-mat4 projection;
+shader_program shader{};
+model mesh{};
 
 }  // namespace
 
@@ -71,35 +72,19 @@ void setup() {
     zoom({x, y});
   });
 
+  load_stl_file("/home/lyrahgames/data/models/dragon-head.stl", mesh);
+  fit_view();
   shader = shader_program({vertex_shader_text}, {fragment_shader_text});
-
-  // Use a vertex array to be able to reference the vertex buffer and
-  // the vertex attribute arrays of the triangle with one single variable.
-  glGenVertexArrays(1, &vertex_array);
-  glBindVertexArray(vertex_array);
-
-  // Generate and bind the buffer which shall contain the triangle data.
-  glGenBuffers(1, &vertex_buffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-  // The data is not changing rapidly. Therefore we use GL_STATIC_DRAW.
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  // Set the data layout of the position and colors
-  // with vertex attribute pointers.
-  const auto vpos_location = glGetAttribLocation(shader, "vPos");
-  glEnableVertexAttribArray(vpos_location);
-  glVertexAttribPointer(vpos_location, 2, GL_FLOAT, GL_FALSE,
-                        sizeof(vertices[0]), (void*)0);
-  const auto vcol_location = glGetAttribLocation(shader, "vCol");
-  glEnableVertexAttribArray(vcol_location);
-  glVertexAttribPointer(vcol_location, 3, GL_FLOAT, GL_FALSE,
-                        sizeof(vertices[0]), (void*)(sizeof(float) * 2));
+  mesh.setup(shader);
+  mesh.update();
 
   int width, height;
   glfwGetFramebufferSize(window, &width, &height);
   resize(width, height);
 
+  glEnable(GL_DEPTH_TEST);
   glClearColor(0.0, 0.5, 0.8, 1.0);
+  glPointSize(3.0f);
 }
 
 void process_events() {
@@ -132,27 +117,12 @@ void update() {
     update_view();
     view_should_update = false;
   }
-
-  // Continuously rotate the triangle.
-  auto model = glm::mat4{1.0f};
-  const auto axis = glm::normalize(glm::vec3(1, 1, 1));
-  model = rotate(model, float(glfwGetTime()), axis);
-
-  const auto view = lookAt(vec3{0, 0, 5}, {0, 0, 0}, {0, 1, 0});
-
-  // Compute the model-view-projection matrix (MVP).
-  const auto mvp = cam.projection_matrix() * cam.view_matrix() * model;
-  // Transfer the MVP to the GPU.
-  glUniformMatrix4fv(glGetUniformLocation(shader, "MVP"), 1, GL_FALSE,
-                     glm::value_ptr(mvp));
 }
 
 void render() {
-  glClear(GL_COLOR_BUFFER_BIT);
-
-  glUseProgram(shader);
-  glBindVertexArray(vertex_array);
-  glDrawArrays(GL_TRIANGLES, 0, 3);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  shader.bind();
+  mesh.render();
 }
 
 void cleanup() {}
@@ -167,6 +137,12 @@ void update_view() {
   p *= radius;
   p += origin;
   cam.move(p).look_at(origin, up);
+
+  shader.bind();
+  shader  //
+      .set("projection", cam.projection_matrix())
+      .set("view", cam.view_matrix())
+      .set("light_dir", cam.direction());
 }
 
 void turn(const vec2& mouse_move) {
@@ -186,6 +162,20 @@ void shift(const vec2& mouse_move) {
 
 void zoom(const vec2& mouse_scroll) {
   radius *= exp(-0.1f * float(mouse_scroll.y));
+  view_should_update = true;
+}
+
+void fit_view() {
+  // AABB computation
+  vec3 aabb_min = mesh.vertices[0].position;
+  vec3 aabb_max = mesh.vertices[0].position;
+  for (size_t i = 1; i < size(mesh.vertices); ++i) {
+    aabb_min = min(aabb_min, mesh.vertices[i].position);
+    aabb_max = max(aabb_max, mesh.vertices[i].position);
+  }
+  origin = 0.5f * (aabb_max + aabb_min);
+  radius = 0.5f * length(aabb_max - aabb_min) *
+           (1.0f / tan(0.5f * cam.vfov() * pi / 180.0f));
   view_should_update = true;
 }
 

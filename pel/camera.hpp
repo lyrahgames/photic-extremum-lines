@@ -4,7 +4,7 @@
 class camera {
  public:
   constexpr camera(int w = 500, int h = 500, float yfov = 45.0f, float n = 0.1f,
-                   float f = 100.0f) noexcept {
+                   float f = 1000.0f) noexcept {
     set_perspective(w, h, yfov, n, f);
   }
 

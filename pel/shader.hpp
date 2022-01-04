@@ -112,6 +112,22 @@ class shader_program {
 
   operator GLuint() const { return handle; }
 
+  void bind() const { glUseProgram(handle); }
+
+  auto set(czstring name, mat4 data) -> shader_program& {
+    glUniformMatrix4fv(glGetUniformLocation(handle, name), 1, GL_FALSE,
+                       value_ptr(data));
+    return *this;
+  }
+  auto set(czstring name, vec3 data) -> shader_program& {
+    glUniform3fv(glGetUniformLocation(handle, name), 1, value_ptr(data));
+    return *this;
+  }
+  auto set(czstring name, vec4 data) -> shader_program& {
+    glUniform4fv(glGetUniformLocation(handle, name), 1, value_ptr(data));
+    return *this;
+  }
+
  private:
   GLuint handle{};
 };

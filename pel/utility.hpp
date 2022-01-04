@@ -1,10 +1,15 @@
 #pragma once
+#include <array>
+#include <bit>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <numbers>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <vector>
 //
 // GLFW without OpenGL Headers
 #define GLFW_INCLUDE_NONE
@@ -18,8 +23,13 @@
 //
 #include <glm/ext.hpp>
 
-using std::runtime_error;
+// Standard Types
+using std::array;
 using std::string;
+using std::vector;
+// Standard Exceptions
+using std::runtime_error;
+//
 using std::swap;
 //
 using std::cos;
