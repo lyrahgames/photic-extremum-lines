@@ -1,5 +1,6 @@
 #include "application.hpp"
 //
+#include "../camera.hpp"
 #include "../shader.hpp"
 
 namespace application {
@@ -8,6 +9,24 @@ glfw_context context{};
 glfw_window window{800, 450, "Photic Extremum Lines"};
 
 namespace {
+
+// World Origin
+vec3 origin;
+// Basis Vectors of Right-Handed Coordinate System
+vec3 up{0, 1, 0};
+vec3 right{1, 0, 0};
+vec3 front{0, 0, 1};
+// Spherical/Horizontal Coordinates of Camera
+float radius = 10;
+float altitude = 0;
+float azimuth = 0;
+
+// Mouse Interaction
+vec2 old_mouse_pos;
+vec2 mouse_pos;
+bool view_should_update = true;
+
+camera cam{};
 
 constexpr struct {
   float x, y;     // 2D Position
@@ -44,6 +63,14 @@ mat4 projection;
 }  // namespace
 
 void setup() {
+  glfwSetFramebufferSizeCallback(
+      window,
+      [](GLFWwindow* window, int width, int height) { resize(width, height); });
+
+  glfwSetScrollCallback(window, [](GLFWwindow* window, double x, double y) {
+    zoom({x, y});
+  });
+
   shader = shader_program({vertex_shader_text}, {fragment_shader_text});
 
   // Use a vertex array to be able to reference the vertex buffer and
@@ -78,14 +105,34 @@ void setup() {
 void process_events() {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, true);
+
+  // Compute the mouse move vector.
+  old_mouse_pos = mouse_pos;
+  double xpos, ypos;
+  glfwGetCursorPos(window, &xpos, &ypos);
+  mouse_pos = vec2{xpos, ypos};
+  const auto mouse_move = mouse_pos - old_mouse_pos;
+
+  // Left mouse button should rotate the camera by using spherical coordinates.
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
+    turn(mouse_move);
+
+  // Right mouse button should translate the camera.
+  if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS)
+    shift(mouse_move);
 }
 
 void resize(int width, int height) {
   glViewport(0, 0, width, height);
-  projection = glm::perspective(45.0f, float(width) / height, 0.1f, 1000.0f);
+  cam.set_screen_resolution(width, height);
 }
 
 void update() {
+  if (view_should_update) {
+    update_view();
+    view_should_update = false;
+  }
+
   // Continuously rotate the triangle.
   auto model = glm::mat4{1.0f};
   const auto axis = glm::normalize(glm::vec3(1, 1, 1));
@@ -94,7 +141,7 @@ void update() {
   const auto view = lookAt(vec3{0, 0, 5}, {0, 0, 0}, {0, 1, 0});
 
   // Compute the model-view-projection matrix (MVP).
-  const auto mvp = projection * view * model;
+  const auto mvp = cam.projection_matrix() * cam.view_matrix() * model;
   // Transfer the MVP to the GPU.
   glUniformMatrix4fv(glGetUniformLocation(shader, "MVP"), 1, GL_FALSE,
                      glm::value_ptr(mvp));
@@ -109,5 +156,37 @@ void render() {
 }
 
 void cleanup() {}
+
+void update_view() {
+  // Computer camera position by using spherical coordinates.
+  // This transformation is a variation of the standard
+  // called horizontal coordinates often used in astronomy.
+  auto p = cos(altitude) * cos(azimuth) * right +  //
+           cos(altitude) * sin(azimuth) * front +  //
+           sin(altitude) * up;
+  p *= radius;
+  p += origin;
+  cam.move(p).look_at(origin, up);
+}
+
+void turn(const vec2& mouse_move) {
+  altitude += mouse_move.y * 0.01;
+  azimuth += mouse_move.x * 0.01;
+  constexpr float bound = pi / 2 - 1e-5f;
+  altitude = std::clamp(altitude, -bound, bound);
+  view_should_update = true;
+}
+
+void shift(const vec2& mouse_move) {
+  const auto shift = mouse_move.x * cam.right() + mouse_move.y * cam.up();
+  const auto scale = 1.3f * cam.pixel_size() * radius;
+  origin += scale * shift;
+  view_should_update = true;
+}
+
+void zoom(const vec2& mouse_scroll) {
+  radius *= exp(-0.1f * float(mouse_scroll.y));
+  view_should_update = true;
+}
 
 }  // namespace application

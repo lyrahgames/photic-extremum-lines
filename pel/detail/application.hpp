@@ -14,4 +14,9 @@ void update();
 void render();
 void cleanup();
 
+void update_view();
+void turn(const vec2& mouse_move);
+void shift(const vec2& mouse_move);
+void zoom(const vec2& mouse_scroll);
+
 }  // namespace application

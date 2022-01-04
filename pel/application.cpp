@@ -17,10 +17,6 @@ bool inited = false;
 void init() {
   if (inited) return;
 
-  glfwSetFramebufferSizeCallback(
-      window,
-      [](GLFWwindow* window, int width, int height) { resize(width, height); });
-
   inited = true;
 }
 
