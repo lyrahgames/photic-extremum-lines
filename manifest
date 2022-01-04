@@ -1,0 +1,17 @@
+: 1
+name: pel
+version: 0.1.0-a.0.z
+summary: pel C++ executable
+license: GPL-3.0-or-later ; GNU General Public License v3.0 or later.
+
+description-file: README.md
+url: https://example.org/pel
+email: lyrahgames@mailbox.org
+#build-error-email: lyrahgames@mailbox.org
+
+depends: * build2 >= 0.14.0
+depends: * bpkg >= 0.14.0
+
+requires: glbinding
+requires: glfw
+requires: glm
