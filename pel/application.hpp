@@ -20,6 +20,8 @@ void turn(const vec2& mouse_move);
 void shift(const vec2& mouse_move);
 void zoom(const vec2& mouse_scroll);
 void fit_view();
+void set_z_as_up();
+void set_y_as_up();
 
 void load_model(czstring file_path);
 

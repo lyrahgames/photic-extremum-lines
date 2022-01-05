@@ -124,6 +124,8 @@ void process_events() {
     shift(mouse_move);
 
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) fit_view();
+  if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) set_y_as_up();
+  if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) set_z_as_up();
 }
 
 void resize(int width, int height) {
@@ -150,8 +152,8 @@ void update_view() {
   // Computer camera position by using spherical coordinates.
   // This transformation is a variation of the standard
   // called horizontal coordinates often used in astronomy.
-  auto p = cos(altitude) * cos(azimuth) * right +  //
-           cos(altitude) * sin(azimuth) * front +  //
+  auto p = cos(altitude) * sin(azimuth) * right -  //
+           cos(altitude) * cos(azimuth) * front +  //
            sin(altitude) * up;
   p *= radius;
   p += origin;
@@ -196,6 +198,20 @@ void fit_view() {
   radius = 0.5f * length(aabb_max - aabb_min) *
            (1.0f / tan(0.5f * cam.vfov() * pi / 180.0f));
   cam.set_near_and_far(1e-4f * radius, 2 * radius);
+  view_should_update = true;
+}
+
+void set_z_as_up() {
+  right = {1, 0, 0};
+  front = {0, -1, 0};
+  up = {0, 0, 1};
+  view_should_update = true;
+}
+
+void set_y_as_up() {
+  right = {1, 0, 0};
+  front = {0, 0, 1};
+  up = {0, 1, 0};
   view_should_update = true;
 }
 
