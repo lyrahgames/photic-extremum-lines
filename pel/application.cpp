@@ -216,7 +216,25 @@ void set_y_as_up() {
 }
 
 void load_model(czstring file_path) {
-  load_stl_file(file_path, mesh);
+  auto start = system_clock::now();
+  stl_binary_format stl_data{file_path};
+  auto end = system_clock::now();
+  auto time = duration<float>(end - start).count();
+  cout << "stl file:\n"
+       << "load time = " << time << " s" << '\n'
+       << "triangle count = " << stl_data.triangles.size() << '\n'
+       << endl;
+
+  start = system_clock::now();
+  transform(stl_data, mesh);
+  end = system_clock::now();
+  time = duration<float>(end - start).count();
+  cout << "mesh transform:\n"
+       << "time = " << time << " s" << '\n'
+       << "vertices = " << mesh.vertices.size() << '\n'
+       << "faces = " << mesh.faces.size() << '\n'
+       << endl;
+
   fit_view();
   mesh.setup(shader);
   mesh.update();

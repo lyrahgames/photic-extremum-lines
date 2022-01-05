@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <bit>
+#include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
@@ -27,6 +28,8 @@
 using std::array;
 using std::string;
 using std::vector;
+using std::chrono::duration;
+using std::chrono::system_clock;
 // Standard Exceptions
 using std::runtime_error;
 //

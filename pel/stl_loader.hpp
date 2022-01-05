@@ -4,44 +4,65 @@
 #include "model.hpp"
 #include "utility.hpp"
 
-void load_stl_file(czstring file_path, model& mesh) {
-  using namespace std;
-  // Open STL file.
-  std::fstream file{file_path, std::ios::in | std::ios::binary};
-  if (!file.is_open()) throw runtime_error("Failed to open given STL file.");
-  // Ignore header.
-  file.ignore(80);
-  uint32_t stl_size;
-  file.read(reinterpret_cast<char*>(&stl_size), sizeof(uint32_t));
-  // Read data.
-  // mesh.vertices.resize(3 * stl_size);
-  // for (size_t i = 0; i < stl_size; ++i) {
-  //   // file.ignore(12);
-  //   vec3 normal;
-  //   file.read(reinterpret_cast<char*>(&normal), sizeof(vec3));
-  //   for (size_t j = 0; j < 3; ++j) {
-  //     vec3 position;
-  //     file.read(reinterpret_cast<char*>(&position), sizeof(vec3));
-  //     mesh.vertices[3 * i + j].position = position;
-  //     mesh.vertices[3 * i + j].normal = normal;
-  //   }
-  //   file.ignore(2);
-  // }
+struct stl_binary_format {
+  using header = array<uint8_t, 80>;
+  using size_type = uint32_t;
+  using attribute_byte_count_type = uint16_t;
+
+  struct alignas(1) triangle {
+    vec3 normal;
+    vec3 vertex[3];
+  };
+
+  static_assert(offsetof(triangle, normal) == 0);
+  static_assert(offsetof(triangle, vertex[0]) == 12);
+  static_assert(offsetof(triangle, vertex[1]) == 24);
+  static_assert(offsetof(triangle, vertex[2]) == 36);
+  static_assert(sizeof(triangle) == 48);
+  static_assert(alignof(triangle) == 4);
+
+  stl_binary_format() = default;
+
+  stl_binary_format(czstring file_path) {
+    std::fstream file{file_path, std::ios::in | std::ios::binary};
+    if (!file.is_open()) throw runtime_error("Failed to open given STL file.");
+
+    // We will ignore the header.
+    // It has no specific use to us.
+    file.ignore(sizeof(header));
+
+    // Read number of triangles.
+    size_type size;
+    file.read((char*)&size, sizeof(size));
+
+    // Due to padding and alignment issues,
+    // we cannot read everything at once.
+    // Hence, we use a simple loop for every triangle.
+    triangles.resize(size);
+    for (auto& t : triangles) {
+      file.read((char*)&t, sizeof(triangle));
+      // Ignore the attribute byte count.
+      // There should not be any information anyway.
+      file.ignore(sizeof(attribute_byte_count_type));
+    }
+  }
+
+  vector<triangle> triangles{};
+};
+
+void transform(const stl_binary_format& stl_data, model& mesh) {
   std::unordered_map<vec3, size_t, decltype([](const auto& v) -> size_t {
-                       return (bit_cast<uint32_t>(v.x) << 7) ^
-                              (bit_cast<uint32_t>(v.y) << 3) ^
+                       return (bit_cast<uint32_t>(v.x) << 11) ^
+                              (bit_cast<uint32_t>(v.y) << 5) ^
                               bit_cast<uint32_t>(v.z);
                      })>
       position_index{};
+  position_index.reserve(stl_data.triangles.size());
 
-  for (size_t i = 0; i < stl_size; ++i) {
-    vec3 normal;
-    file.read(reinterpret_cast<char*>(&normal), sizeof(normal));
-
-    array<vec3, 3> v;
-    file.read(reinterpret_cast<char*>(&v), sizeof(v));
-
+  for (size_t i = 0; i < stl_data.triangles.size(); ++i) {
     model::face f{};
+    const auto& normal = stl_data.triangles[i].normal;
+    const auto& v = stl_data.triangles[i].vertex;
     for (size_t j = 0; j < 3; ++j) {
       const auto k = (j + 1) % 3;
       const auto l = (j + 2) % 3;
@@ -69,8 +90,6 @@ void load_stl_file(czstring file_path, model& mesh) {
     }
 
     mesh.faces.push_back(f);
-
-    file.ignore(2);
   }
 
   for (auto& v : mesh.vertices) {
