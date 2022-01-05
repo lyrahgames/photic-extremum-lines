@@ -47,8 +47,8 @@ void load_stl_file(czstring file_path, model& mesh) {
       const auto l = (j + 2) % 3;
       const auto p = v[k] - v[j];
       const auto q = v[l] - v[j];
-      const auto weight = length(cross(p, q)) / dot(p, p) / dot(q, q);
-      // const auto n = cross(p, q) / dot(p, p) / dot(q, q);
+      // const auto weight = length(cross(p, q)) / dot(p, p) / dot(q, q);
+      const auto n = cross(p, q) / dot(p, p) / dot(q, q);
 
       const auto it = position_index.find(v[j]);
       if (it == end(position_index)) {
@@ -56,16 +56,16 @@ void load_stl_file(czstring file_path, model& mesh) {
         f[j] = index;
         position_index.emplace(v[j], index);
         // mesh.vertices.push_back({v[j], normal});
-        mesh.vertices.push_back({v[j], weight * normal});
-        // mesh.vertices.push_back({v[j], n});
+        // mesh.vertices.push_back({v[j], weight * normal});
+        mesh.vertices.push_back({v[j], n});
         continue;
       }
 
       const auto index = it->second;
       f[j] = index;
       // mesh.vertices[index].normal += normal;
-      mesh.vertices[index].normal += weight * normal;
-      // mesh.vertices[index].normal += n;
+      // mesh.vertices[index].normal += weight * normal;
+      mesh.vertices[index].normal += n;
     }
 
     mesh.faces.push_back(f);

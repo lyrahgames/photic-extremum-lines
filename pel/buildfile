@@ -4,8 +4,5 @@ import libs += glfw3%lib{glfw3}
 import libs += glm%lib{glm}
 
 exe{pel}: {hxx ixx txx cxx}{**} $libs
-{
-  test = true
-}
 
 cxx.poptions =+ "-I$out_root" "-I$src_root"

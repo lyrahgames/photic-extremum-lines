@@ -53,6 +53,11 @@ class camera {
     return *this;
   }
 
+  auto set_near_and_far(float n, float f) noexcept -> camera& {
+    set_perspective(width, height, fov.y, n, f);
+    return *this;
+  }
+
   auto move(const vec3& t) noexcept -> camera& {
     pos = t;
     view = translate(mat4{1}, t);

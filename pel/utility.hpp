@@ -34,6 +34,9 @@ using std::swap;
 //
 using std::cos;
 using std::sin;
+//
+using std::cout;
+using std::endl;
 
 constexpr auto pi = std::numbers::pi_v<float>;
 
