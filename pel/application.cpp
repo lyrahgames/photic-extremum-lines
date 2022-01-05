@@ -4,6 +4,8 @@
 #include "model.hpp"
 #include "shader.hpp"
 #include "stl_loader.hpp"
+#include "viewer_shader.hpp"
+#include "wireframe_shader.hpp"
 
 using namespace std;
 
@@ -32,35 +34,6 @@ bool view_should_update = true;
 
 camera cam{};
 
-constexpr czstring vertex_shader_text =
-    "#version 330 core\n"
-
-    "uniform mat4 projection;"
-    "uniform mat4 view;"
-
-    "in vec3 p;"
-    "in vec3 n;"
-
-    "out vec3 normal;"
-
-    "void main(){"
-    "  gl_Position = projection * view * vec4(p, 1.0);"
-    "  normal = n;"
-    "}";
-
-constexpr czstring fragment_shader_text =
-    "#version 330 core\n"
-
-    "uniform vec3 light_dir;"
-
-    "in vec3 normal;"
-
-    "void main(){"
-    // "  float light = max(-dot(light_dir, normalize(normal)), 0.0);"
-    "  float light = abs(dot(light_dir, normalize(normal)));"
-    "  gl_FragColor = vec4(0.5 * vec3(light) + 0.5, 1.0);"
-    "}";
-
 shader_program shader{};
 model mesh{};
 
@@ -75,7 +48,11 @@ void init() {
     zoom({x, y});
   });
 
-  shader = shader_program({vertex_shader_text}, {fragment_shader_text});
+  // shader = shader_program({vertex_shader_text},    //
+  //                         {geometry_shader_text},  //
+  //                         {fragment_shader_text});
+  // shader = wireframe_shader();
+  shader = viewer_shader();
 }
 
 void run() {
@@ -126,6 +103,15 @@ void process_events() {
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) fit_view();
   if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) set_y_as_up();
   if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) set_z_as_up();
+
+  if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    shader = wireframe_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
+    shader = viewer_shader();
+    view_should_update = true;
+  }
 }
 
 void resize(int width, int height) {
@@ -159,11 +145,17 @@ void update_view() {
   p += origin;
   cam.move(p).look_at(origin, up);
 
+  // auto t = vec3(cam.view_matrix() * vec4(cam.direction(), 0.0f));
+  // cout << t.x << ", " << t.y << ", " << t.z << endl;
+
   shader.bind();
   shader  //
       .set("projection", cam.projection_matrix())
       .set("view", cam.view_matrix())
-      .set("light_dir", cam.direction());
+      // .set("light_dir", vec3(cam.view_matrix() * vec4(cam.direction(),
+      // 0.0f)))
+      .set("viewport", scale(mat4{1.0f}, {cam.screen_width() / 2.0f,
+                                          cam.screen_height() / 2.0f, 1.0f}));
 }
 
 void turn(const vec2& mouse_move) {
