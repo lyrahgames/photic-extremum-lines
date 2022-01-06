@@ -4,6 +4,7 @@
 #include "model.hpp"
 #include "shader.hpp"
 #include "stl_loader.hpp"
+#include "toon_shader.hpp"
 #include "viewer_shader.hpp"
 #include "wireframe_shader.hpp"
 
@@ -110,6 +111,10 @@ void process_events() {
   }
   if (glfwGetKey(window, GLFW_KEY_V) == GLFW_PRESS) {
     shader = viewer_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+    shader = toon_shader();
     view_should_update = true;
   }
 }
