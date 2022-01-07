@@ -1,11 +1,13 @@
 #include "application.hpp"
 //
 #include "camera.hpp"
+#include "contours_shader.hpp"
 #include "model.hpp"
 #include "shader.hpp"
 #include "stl_loader.hpp"
 #include "toon_shader.hpp"
 #include "viewer_shader.hpp"
+#include "white_shader.hpp"
 #include "wireframe_shader.hpp"
 
 using namespace std;
@@ -36,6 +38,8 @@ bool view_should_update = true;
 camera cam{};
 
 shader_program shader{};
+shader_program line_shader{};
+bool feature_lines_enabled = false;
 model mesh{};
 
 }  // namespace
@@ -54,6 +58,7 @@ void init() {
   //                         {fragment_shader_text});
   // shader = wireframe_shader();
   shader = viewer_shader();
+  line_shader = contours_shader();
 }
 
 void run() {
@@ -80,6 +85,7 @@ void setup() {
   glEnable(GL_DEPTH_TEST);
   glClearColor(0.0, 0.5, 0.8, 1.0);
   glPointSize(3.0f);
+  glLineWidth(3.0f);
 }
 
 void process_events() {
@@ -117,6 +123,20 @@ void process_events() {
     shader = toon_shader();
     view_should_update = true;
   }
+  if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
+    shader = white_shader();
+    view_should_update = true;
+  }
+
+  if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
+    feature_lines_enabled = !feature_lines_enabled;
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+    line_shader = contours_shader();
+    feature_lines_enabled = true;
+    view_should_update = true;
+  }
 }
 
 void resize(int width, int height) {
@@ -135,6 +155,10 @@ void render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   shader.bind();
   mesh.render();
+  if (feature_lines_enabled) {
+    line_shader.bind();
+    mesh.render();
+  }
 }
 
 void cleanup() {}
@@ -161,6 +185,11 @@ void update_view() {
       // 0.0f)))
       .set("viewport", scale(mat4{1.0f}, {cam.screen_width() / 2.0f,
                                           cam.screen_height() / 2.0f, 1.0f}));
+
+  line_shader.bind();
+  line_shader  //
+      .set("projection", cam.projection_matrix())
+      .set("view", cam.view_matrix());
 }
 
 void turn(const vec2& mouse_move) {
