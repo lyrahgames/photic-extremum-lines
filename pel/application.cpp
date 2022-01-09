@@ -2,6 +2,7 @@
 //
 #include "camera.hpp"
 #include "contours_shader.hpp"
+#include "flat_shader.hpp"
 #include "model.hpp"
 #include "shader.hpp"
 #include "stl_loader.hpp"
@@ -125,6 +126,10 @@ void process_events() {
   }
   if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) {
     shader = white_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+    shader = flat_shader();
     view_should_update = true;
   }
 
