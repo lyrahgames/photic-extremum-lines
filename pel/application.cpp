@@ -45,7 +45,9 @@ shader_program shader{};
 shader_program line_shader{};
 bool feature_lines_enabled = false;
 model mesh{};
+
 vector<illumination_info> illumination_data{};
+vector<gradient_info> gradient_data{};
 vertex_buffer illumination_buffer;
 
 }  // namespace
@@ -284,10 +286,14 @@ void load_model(czstring file_path) {
   mesh.update();
 
   illumination_data.resize(mesh.vertices.size());
+  gradient_data.resize(mesh.faces.size());
+  compute_voronoi_weights(mesh, gradient_data);
+  compute_vertex_voronoi_area(mesh, gradient_data, illumination_data);
 }
 
 void update_illumination_data() {
   compute_vertex_light(cam.direction(), mesh, illumination_data);
+  compute_vertex_light_gradient(mesh, gradient_data, illumination_data);
 
   illumination_buffer.bind();
   {
@@ -296,6 +302,20 @@ void update_illumination_data() {
     glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light));
+  }
+  {
+    const auto location = glGetAttribLocation(shader, "lg");
+    glEnableVertexAttribArray(location);
+    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE,
+                          sizeof(illumination_info),
+                          (void*)offsetof(illumination_info, light_gradient));
+  }
+  {
+    const auto location = glGetAttribLocation(shader, "lv");
+    glEnableVertexAttribArray(location);
+    glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
+                          sizeof(illumination_info),
+                          (void*)offsetof(illumination_info, light_variation));
   }
   glBufferData(GL_ARRAY_BUFFER,
                illumination_data.size() * sizeof(illumination_data[0]),

@@ -3,6 +3,7 @@
 #include "utility.hpp"
 
 struct illumination_info {
+  float voronoi_area{};
   float light{};
   vec3 light_gradient{};
   float light_variation{};
@@ -11,10 +12,20 @@ struct illumination_info {
 };
 
 struct gradient_info {
-  vec3 u, v;
-  float u2, v2, uv;
-  float inv_det;
+  float area;
+  float voronoi_weight[3];
 };
+
+void compute_voronoi_weights(const model& mesh,
+                             vector<gradient_info>& gradient_data);
 
 void compute_vertex_light(vec3 light_dir, const model& mesh,
                           vector<illumination_info>& illumination_data);
+
+void compute_vertex_voronoi_area(const model& mesh,
+                                 const vector<gradient_info>& gradient_data,
+                                 vector<illumination_info>& illumination_data);
+
+void compute_vertex_light_gradient(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data);
