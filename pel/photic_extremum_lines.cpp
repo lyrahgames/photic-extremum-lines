@@ -138,3 +138,57 @@ void compute_vertex_light_gradient(
     x.light_variation /= light_variation_max;
   }
 }
+
+void compute_vertex_light_variation_slope(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data) {
+  for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+    auto& x = illumination_data[i];
+    x.light_variation_slope = 0;
+  }
+
+  for (size_t i = 0; i < mesh.faces.size(); ++i) {
+    const auto& f = mesh.faces[i];
+    const auto& x = mesh.vertices[f[0]].position;
+    const auto& y = mesh.vertices[f[1]].position;
+    const auto& z = mesh.vertices[f[2]].position;
+
+    const auto lx = illumination_data[f[0]].light_variation;
+    const auto ly = illumination_data[f[1]].light_variation;
+    const auto lz = illumination_data[f[2]].light_variation;
+
+    const auto u = y - x;
+    const auto v = z - x;
+
+    const auto dlu = ly - lx;
+    const auto dlv = lz - lx;
+
+    const auto u2 = dot(u, u);
+    const auto v2 = dot(v, v);
+    const auto uv = dot(u, v);
+
+    const auto inv_det = 1 / (u2 * v2 - uv * uv);
+
+    const auto p = (v2 * dlu - uv * dlv) * inv_det;
+    const auto q = (u2 * dlv - uv * dlu) * inv_det;
+
+    const auto grad = p * u + q * v;
+
+    for (int j = 0; j < 3; ++j)
+      illumination_data[f[j]].light_variation_slope +=
+          gradient_data[i].voronoi_weight[j] *
+          dot(grad, illumination_data[f[j]].light_gradient);
+  }
+
+  float light_variation_slope_max = 0;
+  for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+    auto& x = illumination_data[i];
+    x.light_variation_slope /= x.voronoi_area;
+    light_variation_slope_max =
+        std::max(light_variation_slope_max, std::abs(x.light_variation_slope));
+  }
+  for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+    auto& x = illumination_data[i];
+    x.light_variation_slope /= light_variation_slope_max;
+  }
+}

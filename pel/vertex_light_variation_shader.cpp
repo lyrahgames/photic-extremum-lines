@@ -1,4 +1,4 @@
-#include "vertex_light_shader.hpp"
+#include "vertex_light_variation_shader.hpp"
 
 namespace {
 
@@ -13,15 +13,12 @@ constexpr czstring vertex_shader_text =
     "layout (location = 2) in float l;"
     "layout (location = 3) in vec3 lg;"
     "layout (location = 4) in float lv;"
-    "layout (location = 5) in float lvs;"
 
     "out float light;"
 
     "void main(){"
     "  gl_Position = projection * view * vec4(p, 1.0);"
-    // "  light = 1 - pow(1 - lv, 100);"
-    // "  light = pow(1 - abs(lvs), 100);"
-    "  light = l;"
+    "  light = 1 - pow(1 - lv, 100);"
     "}";
 
 constexpr czstring fragment_shader_text =
@@ -37,7 +34,7 @@ constexpr czstring fragment_shader_text =
 
 }  // namespace
 
-auto vertex_light_shader() -> shader_program {
+auto vertex_light_variation_shader() -> shader_program {
   vertex_shader vs{vertex_shader_text};
   fragment_shader fs{fragment_shader_text};
   return shader_program{vs, fs};

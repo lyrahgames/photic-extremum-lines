@@ -5,11 +5,14 @@
 #include "flat_shader.hpp"
 #include "model.hpp"
 #include "photic_extremum_lines.hpp"
+#include "photic_extremum_lines_shader.hpp"
 #include "shader.hpp"
 #include "silhouette_shader.hpp"
 #include "stl_loader.hpp"
 #include "toon_shader.hpp"
 #include "vertex_light_shader.hpp"
+#include "vertex_light_variation_shader.hpp"
+#include "vertex_light_variation_slope_shader.hpp"
 #include "viewer_shader.hpp"
 #include "white_shader.hpp"
 #include "wireframe_shader.hpp"
@@ -43,6 +46,7 @@ camera cam{};
 
 shader_program shader{};
 shader_program line_shader{};
+bool surface_shading_enabled = true;
 bool feature_lines_enabled = false;
 model mesh{};
 
@@ -86,10 +90,14 @@ void setup() {
   glfwGetFramebufferSize(window, &width, &height);
   resize(width, height);
 
+  glEnable(GL_MULTISAMPLE);
   glEnable(GL_DEPTH_TEST);
-  glClearColor(0.0, 0.5, 0.8, 1.0);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  // glClearColor(0.0, 0.5, 0.8, 1.0);
+  glClearColor(1.0, 1.0, 1.0, 1.0);
   glPointSize(3.0f);
-  glLineWidth(3.0f);
+  glLineWidth(2.5f);
 }
 
 void process_events() {
@@ -139,21 +147,33 @@ void process_events() {
     shader = flat_shader();
     view_should_update = true;
   }
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-    shader = silhouette_shader();
-    view_should_update = true;
-  }
   if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
     shader = vertex_light_shader();
     view_should_update = true;
   }
-
+  if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS) {
+    shader = vertex_light_variation_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) {
+    shader = vertex_light_variation_slope_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    surface_shading_enabled = !surface_shading_enabled;
+    view_should_update = true;
+  }
   if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
     feature_lines_enabled = !feature_lines_enabled;
     view_should_update = true;
   }
   if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
     line_shader = contours_shader();
+    feature_lines_enabled = true;
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+    line_shader = photic_extremum_lines_shader();
     feature_lines_enabled = true;
     view_should_update = true;
   }
@@ -173,8 +193,10 @@ void update() {
 
 void render() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  shader.bind();
-  mesh.render();
+  if (surface_shading_enabled) {
+    shader.bind();
+    mesh.render();
+  }
   if (feature_lines_enabled) {
     line_shader.bind();
     mesh.render();
@@ -294,28 +316,36 @@ void load_model(czstring file_path) {
 void update_illumination_data() {
   compute_vertex_light(cam.direction(), mesh, illumination_data);
   compute_vertex_light_gradient(mesh, gradient_data, illumination_data);
+  compute_vertex_light_variation_slope(mesh, gradient_data, illumination_data);
 
   illumination_buffer.bind();
   {
-    const auto location = glGetAttribLocation(shader, "l");
+    const auto location = glGetAttribLocation(line_shader, "l");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light));
   }
   {
-    const auto location = glGetAttribLocation(shader, "lg");
+    const auto location = glGetAttribLocation(line_shader, "lg");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light_gradient));
   }
   {
-    const auto location = glGetAttribLocation(shader, "lv");
+    const auto location = glGetAttribLocation(line_shader, "lv");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light_variation));
+  }
+  {
+    const auto location = glGetAttribLocation(line_shader, "lvs");
+    glEnableVertexAttribArray(location);
+    glVertexAttribPointer(
+        location, 1, GL_FLOAT, GL_FALSE, sizeof(illumination_info),
+        (void*)offsetof(illumination_info, light_variation_slope));
   }
   glBufferData(GL_ARRAY_BUFFER,
                illumination_data.size() * sizeof(illumination_data[0]),

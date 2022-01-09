@@ -29,3 +29,7 @@ void compute_vertex_voronoi_area(const model& mesh,
 void compute_vertex_light_gradient(
     const model& mesh, const vector<gradient_info>& gradient_data,
     vector<illumination_info>& illumination_data);
+
+void compute_vertex_light_variation_slope(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data);
