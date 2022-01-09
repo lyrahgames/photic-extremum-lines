@@ -15,3 +15,6 @@ struct gradient_info {
   float u2, v2, uv;
   float inv_det;
 };
+
+void compute_vertex_light(vec3 light_dir, const model& mesh,
+                          vector<illumination_info>& illumination_data);

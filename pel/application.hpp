@@ -24,5 +24,6 @@ void set_z_as_up();
 void set_y_as_up();
 
 void load_model(czstring file_path);
+void update_illumination_data();
 
 }  // namespace application

@@ -4,10 +4,12 @@
 #include "contours_shader.hpp"
 #include "flat_shader.hpp"
 #include "model.hpp"
+#include "photic_extremum_lines.hpp"
 #include "shader.hpp"
 #include "silhouette_shader.hpp"
 #include "stl_loader.hpp"
 #include "toon_shader.hpp"
+#include "vertex_light_shader.hpp"
 #include "viewer_shader.hpp"
 #include "white_shader.hpp"
 #include "wireframe_shader.hpp"
@@ -43,6 +45,8 @@ shader_program shader{};
 shader_program line_shader{};
 bool feature_lines_enabled = false;
 model mesh{};
+vector<illumination_info> illumination_data{};
+vertex_buffer illumination_buffer;
 
 }  // namespace
 
@@ -55,10 +59,6 @@ void init() {
     zoom({x, y});
   });
 
-  // shader = shader_program({vertex_shader_text},    //
-  //                         {geometry_shader_text},  //
-  //                         {fragment_shader_text});
-  // shader = wireframe_shader();
   shader = viewer_shader();
   line_shader = contours_shader();
 }
@@ -113,6 +113,10 @@ void process_events() {
   if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) set_y_as_up();
   if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) set_z_as_up();
 
+  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) {
+    update_illumination_data();
+  }
+
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
     shader = wireframe_shader();
     view_should_update = true;
@@ -135,6 +139,10 @@ void process_events() {
   }
   if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
     shader = silhouette_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+    shader = vertex_light_shader();
     view_should_update = true;
   }
 
@@ -274,6 +282,26 @@ void load_model(czstring file_path) {
   fit_view();
   mesh.setup(shader);
   mesh.update();
+
+  illumination_data.resize(mesh.vertices.size());
+}
+
+void update_illumination_data() {
+  compute_vertex_light(cam.direction(), mesh, illumination_data);
+
+  illumination_buffer.bind();
+  {
+    const auto location = glGetAttribLocation(shader, "l");
+    glEnableVertexAttribArray(location);
+    glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
+                          sizeof(illumination_info),
+                          (void*)offsetof(illumination_info, light));
+  }
+  glBufferData(GL_ARRAY_BUFFER,
+               illumination_data.size() * sizeof(illumination_data[0]),
+               illumination_data.data(), GL_DYNAMIC_DRAW);
+
+  view_should_update = true;
 }
 
 }  // namespace application
