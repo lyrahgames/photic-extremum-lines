@@ -5,6 +5,7 @@
 #include "flat_shader.hpp"
 #include "model.hpp"
 #include "shader.hpp"
+#include "silhouette_shader.hpp"
 #include "stl_loader.hpp"
 #include "toon_shader.hpp"
 #include "viewer_shader.hpp"
@@ -130,6 +131,10 @@ void process_events() {
   }
   if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
     shader = flat_shader();
+    view_should_update = true;
+  }
+  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    shader = silhouette_shader();
     view_should_update = true;
   }
 
