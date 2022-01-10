@@ -33,3 +33,7 @@ void compute_vertex_light_gradient(
 void compute_vertex_light_variation_slope(
     const model& mesh, const vector<gradient_info>& gradient_data,
     vector<illumination_info>& illumination_data);
+
+void compute_vertex_light_variation_curve(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data);

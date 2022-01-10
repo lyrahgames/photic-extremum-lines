@@ -193,6 +193,7 @@ void process_events() {
 void resize(int width, int height) {
   glViewport(0, 0, width, height);
   cam.set_screen_resolution(width, height);
+  view_should_update = true;
 }
 
 void update() {
@@ -363,12 +364,20 @@ void setup_illumination_locations(const shader_program& shader) {
         location, 1, GL_FLOAT, GL_FALSE, sizeof(illumination_info),
         (void*)offsetof(illumination_info, light_variation_slope));
   }
+  {
+    const auto location = glGetAttribLocation(shader, "lvc");
+    glEnableVertexAttribArray(location);
+    glVertexAttribPointer(
+        location, 1, GL_FLOAT, GL_FALSE, sizeof(illumination_info),
+        (void*)offsetof(illumination_info, light_variation_curve));
+  }
 }
 
 void update_illumination_data() {
   compute_vertex_light(cam.direction(), mesh, illumination_data);
   compute_vertex_light_gradient(mesh, gradient_data, illumination_data);
   compute_vertex_light_variation_slope(mesh, gradient_data, illumination_data);
+  compute_vertex_light_variation_curve(mesh, gradient_data, illumination_data);
 
   setup_illumination_locations(shader);
   setup_illumination_locations(line_shader);

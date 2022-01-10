@@ -14,16 +14,19 @@ constexpr czstring vertex_shader_text =
     "layout (location = 3) in vec3 lg;"
     "layout (location = 4) in float lv;"
     "layout (location = 5) in float lvs;"
+    "layout (location = 6) in float lvc;"
 
     "out vec3 gradient;"
     "out float variation;"
     "out float slope;"
+    "out float curve;"
 
     "void main(){"
     "  gl_Position = projection * view * vec4(p, 1.0);"
     "  gradient = lg;"
     "  variation = lv;"
     "  slope = lvs;"
+    "  curve = lvc;"
     "}";
 
 constexpr czstring geometry_shader_text =
@@ -37,9 +40,9 @@ constexpr czstring geometry_shader_text =
     "in vec3 gradient[];"
     "in float variation[];"
     "in float slope[];"
+    "in float curve[];"
 
     "out float strength;"
-    "out float curve;"
 
     "void main(){"
     "  vec4 x = gl_in[0].gl_Position;"
@@ -50,42 +53,27 @@ constexpr czstring geometry_shader_text =
     "  float ly = variation[1];"
     "  float lz = variation[2];"
 
-    // Compute second directional derivative.
-    "  vec3 u = vec3(y - x);"
-    "  vec3 v = vec3(z - x);"
-    "  float dlu = slope[1] - slope[0];"
-    "  float dlv = slope[2] - slope[0];"
-    "  float u2 = dot(u, u);"
-    "  float v2 = dot(v, v);"
-    "  float uv = dot(u, v);"
-    "  float inv_det = 1 / (u2 * v2 - uv * uv);"
-    "  float a = (v2 * dlu - uv * dlv) * inv_det;"
-    "  float b = (u2 * dlv - uv * dlu) * inv_det;"
-    "  vec3 slope_grad = a * u + b * v;"
-
     "  float sx = abs(slope[0]);"
     "  float sy = abs(slope[1]);"
     "  float sz = abs(slope[2]);"
 
-    "  if (slope[0] * slope[1] < 0) {"
+    "  float cx = (sy * curve[0] + sx * curve[1]) / (sx + sy);"
+    "  float cy = (sz * curve[1] + sy * curve[2]) / (sy + sz);"
+    "  float cz = (sx * curve[2] + sz * curve[0]) / (sz + sx);"
+
+    "  if ((slope[0] * slope[1] < 0) && (cx < 0)) {"
     "    gl_Position = (sy * x + sx * y) / (sx + sy);"
     "    strength = (sy * lx + sx * ly) / (sx + sy);"
-    "    vec3 g = (sy * gradient[0] + sx * gradient[1]) / (sx + sy);"
-    "    curve = dot(slope_grad, normalize(g));"
     "    EmitVertex();"
     "  }"
-    "  if (slope[1] * slope[2] < 0) {"
+    "  if ((slope[1] * slope[2] < 0) && (cy < 0)) {"
     "    gl_Position = (sz * y + sy * z) / (sy + sz);"
     "    strength = (sz * ly + sy * lz) / (sy + sz);"
-    "    vec3 g = (sz * gradient[1] + sy * gradient[2]) / (sy + sz);"
-    "    curve = dot(slope_grad, normalize(g));"
     "    EmitVertex();"
     "  }"
-    "  if (slope[2] * slope[0] < 0) {"
+    "  if ((slope[2] * slope[0] < 0) && (cz < 0)) {"
     "    gl_Position = (sx * z + sz * x) / (sz + sx);"
     "    strength = (sx * lz + sz * lx) / (sz + sx);"
-    "    vec3 g = (sx * gradient[2] + sz * gradient[0]) / (sz + sx);"
-    "    curve = dot(slope_grad, normalize(g));"
     "    EmitVertex();"
     "  }"
     "  EndPrimitive();"
@@ -97,7 +85,6 @@ constexpr czstring fragment_shader_text =
     "uniform float threshold;"
 
     "in float strength;"
-    "in float curve;"
 
     "layout (location = 0) out vec4 frag_color;"
 
