@@ -46,8 +46,10 @@ camera cam{};
 
 shader_program shader{};
 shader_program line_shader{};
+shader_program contour_shader{};
 bool surface_shading_enabled = true;
-bool feature_lines_enabled = false;
+bool pels_enabled = true;
+bool contours_enabled = true;
 model mesh{};
 
 vec3 aabb_min{};
@@ -77,11 +79,14 @@ void init() {
                                 int action, int mods) {
     control_key_pressed = mods & GLFW_MOD_CONTROL;
     if ((key == GLFW_KEY_L) && (action == GLFW_PRESS))
-      feature_lines_enabled = !feature_lines_enabled;
+      pels_enabled = !pels_enabled;
+    if ((key == GLFW_KEY_C) && (action == GLFW_PRESS))
+      contours_enabled = !contours_enabled;
     if ((key == GLFW_KEY_S) && (action == GLFW_PRESS))
       surface_shading_enabled = !surface_shading_enabled;
     if ((key == GLFW_KEY_U) && (action == GLFW_PRESS))
       illumination_should_update = !illumination_should_update;
+
     view_should_update = true;
   });
 
@@ -95,7 +100,8 @@ void init() {
   });
 
   shader = viewer_shader();
-  line_shader = contours_shader();
+  line_shader = photic_extremum_lines_shader();
+  contour_shader = contours_shader();
 }
 
 void run() {
@@ -184,17 +190,6 @@ void process_events() {
     shader = vertex_light_variation_slope_shader();
     view_should_update = true;
   }
-
-  if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
-    line_shader = contours_shader();
-    feature_lines_enabled = true;
-    view_should_update = true;
-  }
-  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-    line_shader = photic_extremum_lines_shader();
-    feature_lines_enabled = true;
-    view_should_update = true;
-  }
 }
 
 void resize(int width, int height) {
@@ -216,8 +211,12 @@ void render() {
     shader.bind();
     mesh.render();
   }
-  if (feature_lines_enabled) {
+  if (pels_enabled) {
     line_shader.bind();
+    mesh.render();
+  }
+  if (contours_enabled) {
+    contour_shader.bind();
     mesh.render();
   }
 }
@@ -249,6 +248,13 @@ void update_view() {
       // 0.0f)))
       .set("viewport", scale(mat4{1.0f}, {cam.screen_width() / 2.0f,
                                           cam.screen_height() / 2.0f, 1.0f}));
+
+  contour_shader.bind();
+  contour_shader  //
+      .set("projection", cam.projection_matrix())
+      .set("view", cam.view_matrix())
+      .set("threshold", threshold)
+      .set("shift", line_shift);
 
   line_shader.bind();
   line_shader  //

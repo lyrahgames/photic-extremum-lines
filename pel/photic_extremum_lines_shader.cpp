@@ -90,7 +90,7 @@ constexpr czstring fragment_shader_text =
     "layout (location = 0) out vec4 frag_color;"
 
     "void main(){"
-    "  float scale = 0.3;"
+    "  float scale = 0.7;"
     "  if ((strength < threshold)) discard;"
     "  float alpha = scale * (strength - threshold) / (1.0 - threshold);"
     "  alpha += 1 - scale;"
