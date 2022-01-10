@@ -1,7 +1,5 @@
 #include "photic_extremum_lines.hpp"
 
-#include <cassert>
-
 void compute_voronoi_weights(const model& mesh,
                              vector<gradient_info>& gradient_data) {
   for (size_t i = 0; i < mesh.faces.size(); ++i) {
@@ -65,6 +63,46 @@ void compute_voronoi_weights(const model& mesh,
   }
 }
 
+void compute_vertex_tangent_system(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data) {
+  // Random Oracle
+  std::mt19937 rng{std::random_device{}()};
+  std::uniform_real_distribution<float> dist{};
+  const auto random = [&]() { return dist(rng); };
+
+  for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+    const auto& normal = mesh.vertices[i].normal;
+
+    vec3 u, v;
+
+    const float eps = 0.1;
+    float projection = 0;
+    while (projection < eps) {
+      const auto theta = 2 * pi * random();
+      const auto phi = acos(1 - 2 * random());
+      const auto r =
+          vec3{sin(phi) * cos(theta), sin(phi) * sin(theta), cos(phi)};
+
+      u = cross(normal, r);
+      projection = length(u);
+    }
+
+    u = normalize(u);
+    v = cross(normal, u);
+
+    // assert(abs(length(u) - 1) < 1e-5);
+    // assert(abs(length(v) - 1) < 1e-5);
+    // assert(abs(length(normal) - 1) < 1e-5);
+    // assert(abs(dot(u, v)) < 1e-5);
+    // assert(abs(dot(u, normal)) < 1e-5);
+    // assert(abs(dot(v, normal)) < 1e-5);
+
+    illumination_data[i].u = u;
+    illumination_data[i].v = v;
+  }
+}
+
 void compute_vertex_light(vec3 light_dir, const model& mesh,
                           vector<illumination_info>& illumination_data) {
   for (size_t i = 0; i < mesh.vertices.size(); ++i) {
@@ -118,11 +156,23 @@ void compute_vertex_light_gradient(
     const auto p = (v2 * dlu - uv * dlv) * inv_det;
     const auto q = (u2 * dlv - uv * dlu) * inv_det;
 
-    const auto grad = p * u + q * v;
+    // const auto grad = p * u + q * v;
 
-    for (int j = 0; j < 3; ++j)
+    for (int j = 0; j < 3; ++j) {
+      const auto& bu = illumination_data[f[j]].u;
+      const auto& bv = illumination_data[f[j]].v;
+
+      const auto buu = dot(bu, u);
+      const auto buv = dot(bu, v);
+      const auto bvu = dot(bv, u);
+      const auto bvv = dot(bv, v);
+
+      const auto grad = vec2{buu * p + buv * q,  //
+                             bvu * p + bvv * q};
+
       illumination_data[f[j]].light_gradient +=
           gradient_data[i].voronoi_weight[j] * grad;
+    }
   }
 
   float light_variation_max = 0;
@@ -172,12 +222,24 @@ void compute_vertex_light_variation_slope(
     const auto p = (v2 * dlu - uv * dlv) * inv_det;
     const auto q = (u2 * dlv - uv * dlu) * inv_det;
 
-    const auto grad = p * u + q * v;
+    // const auto grad = p * u + q * v;
 
-    for (int j = 0; j < 3; ++j)
+    for (int j = 0; j < 3; ++j) {
+      const auto& bu = illumination_data[f[j]].u;
+      const auto& bv = illumination_data[f[j]].v;
+
+      const auto buu = dot(bu, u);
+      const auto buv = dot(bu, v);
+      const auto bvu = dot(bv, u);
+      const auto bvv = dot(bv, v);
+
+      const auto grad = vec2{buu * p + buv * q,  //
+                             bvu * p + bvv * q};
+
       illumination_data[f[j]].light_variation_slope +=
           gradient_data[i].voronoi_weight[j] *
           dot(grad, illumination_data[f[j]].light_gradient);
+    }
   }
 
   float light_variation_slope_max = 0;
@@ -228,10 +290,22 @@ void compute_vertex_light_variation_curve(
 
     const auto grad = p * u + q * v;
 
-    for (int j = 0; j < 3; ++j)
+    for (int j = 0; j < 3; ++j) {
+      const auto& bu = illumination_data[f[j]].u;
+      const auto& bv = illumination_data[f[j]].v;
+
+      const auto buu = dot(bu, u);
+      const auto buv = dot(bu, v);
+      const auto bvu = dot(bv, u);
+      const auto bvv = dot(bv, v);
+
+      const auto grad = vec2{buu * p + buv * q,  //
+                             bvu * p + bvv * q};
+
       illumination_data[f[j]].light_variation_curve +=
           gradient_data[i].voronoi_weight[j] *
           dot(grad, illumination_data[f[j]].light_gradient);
+    }
   }
 
   for (size_t i = 0; i < mesh.vertices.size(); ++i) {

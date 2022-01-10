@@ -7,22 +7,23 @@ constexpr czstring vertex_shader_text =
 
     "uniform mat4 projection;"
     "uniform mat4 view;"
+    "uniform float shift;"
 
     "layout (location = 0) in vec3 p;"
     "layout (location = 1) in vec3 n;"
     "layout (location = 2) in float l;"
-    "layout (location = 3) in vec3 lg;"
+    "layout (location = 3) in vec2 lg;"
     "layout (location = 4) in float lv;"
     "layout (location = 5) in float lvs;"
     "layout (location = 6) in float lvc;"
 
-    "out vec3 gradient;"
+    "out vec2 gradient;"
     "out float variation;"
     "out float slope;"
     "out float curve;"
 
     "void main(){"
-    "  gl_Position = projection * view * vec4(p, 1.0);"
+    "  gl_Position = projection * (view * vec4(p, 1.0) + vec4(0, 0, shift, 0));"
     "  gradient = lg;"
     "  variation = lv;"
     "  slope = lvs;"
@@ -37,7 +38,7 @@ constexpr czstring geometry_shader_text =
     "layout (triangles) in;"
     "layout (line_strip, max_vertices = 2) out;"
 
-    "in vec3 gradient[];"
+    "in vec2 gradient[];"
     "in float variation[];"
     "in float slope[];"
     "in float curve[];"
@@ -89,7 +90,7 @@ constexpr czstring fragment_shader_text =
     "layout (location = 0) out vec4 frag_color;"
 
     "void main(){"
-    "  float scale = 0.5;"
+    "  float scale = 0.3;"
     "  if ((strength < threshold)) discard;"
     "  float alpha = scale * (strength - threshold) / (1.0 - threshold);"
     "  alpha += 1 - scale;"

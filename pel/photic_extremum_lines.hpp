@@ -4,8 +4,10 @@
 
 struct illumination_info {
   float voronoi_area{};
+  vec3 u;
+  vec3 v;
   float light{};
-  vec3 light_gradient{};
+  vec2 light_gradient{};
   float light_variation{};
   float light_variation_slope{};
   float light_variation_curve{};
@@ -18,6 +20,10 @@ struct gradient_info {
 
 void compute_voronoi_weights(const model& mesh,
                              vector<gradient_info>& gradient_data);
+
+void compute_vertex_tangent_system(
+    const model& mesh, const vector<gradient_info>& gradient_data,
+    vector<illumination_info>& illumination_data);
 
 void compute_vertex_light(vec3 light_dir, const model& mesh,
                           vector<illumination_info>& illumination_data);

@@ -29,5 +29,6 @@ void update_illumination_data();
 void setup_illumination_locations(const shader_program& shader);
 
 void adjust_threshold(float x);
+void adjust_shift(float x);
 
 }  // namespace application

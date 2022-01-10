@@ -1,12 +1,14 @@
 #pragma once
 #include <array>
 #include <bit>
+#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <numbers>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>

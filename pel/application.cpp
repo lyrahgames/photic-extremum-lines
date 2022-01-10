@@ -50,12 +50,17 @@ bool surface_shading_enabled = true;
 bool feature_lines_enabled = false;
 model mesh{};
 
+vec3 aabb_min{};
+vec3 aabb_max{};
+float bounding_radius;
+
 vector<illumination_info> illumination_data{};
 vector<gradient_info> gradient_data{};
 vertex_buffer illumination_buffer;
 
 float threshold = 0.01;
 float threshold_shift = -1 / log(threshold);
+float line_shift = 0.001;
 
 bool illumination_should_update = true;
 
@@ -83,6 +88,8 @@ void init() {
   glfwSetScrollCallback(window, [](GLFWwindow* window, double x, double y) {
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
       adjust_threshold(y);
+    else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+      adjust_shift(y);
     else
       zoom({x, y});
   });
@@ -119,7 +126,7 @@ void setup() {
   // glClearColor(0.0, 0.5, 0.8, 1.0);
   glClearColor(1.0, 1.0, 1.0, 1.0);
   glPointSize(3.0f);
-  glLineWidth(3.5f);
+  glLineWidth(2.5f);
 }
 
 void process_events() {
@@ -228,6 +235,9 @@ void update_view() {
   p += origin;
   cam.move(p).look_at(origin, up);
 
+  cam.set_near_and_far(std::max(1e-3f * radius, radius - bounding_radius),
+                       radius + bounding_radius);
+
   // auto t = vec3(cam.view_matrix() * vec4(cam.direction(), 0.0f));
   // cout << t.x << ", " << t.y << ", " << t.z << endl;
 
@@ -244,7 +254,8 @@ void update_view() {
   line_shader  //
       .set("projection", cam.projection_matrix())
       .set("view", cam.view_matrix())
-      .set("threshold", threshold);
+      .set("threshold", threshold)
+      .set("shift", line_shift);
 
   if (illumination_should_update) update_illumination_data();
 }
@@ -275,15 +286,21 @@ void adjust_threshold(float x) {
   view_should_update = true;
 }
 
+void adjust_shift(float x) {
+  line_shift *= exp(-0.01f * x);
+  view_should_update = true;
+}
+
 void fit_view() {
   // AABB computation
-  vec3 aabb_min = mesh.vertices[0].position;
-  vec3 aabb_max = mesh.vertices[0].position;
+  aabb_min = mesh.vertices[0].position;
+  aabb_max = mesh.vertices[0].position;
   for (size_t i = 1; i < size(mesh.vertices); ++i) {
     aabb_min = min(aabb_min, mesh.vertices[i].position);
     aabb_max = max(aabb_max, mesh.vertices[i].position);
   }
   origin = 0.5f * (aabb_max + aabb_min);
+  bounding_radius = 0.5f * length(aabb_max - aabb_min);
   radius = 0.5f * length(aabb_max - aabb_min) *
            (1.0f / tan(0.5f * cam.vfov() * pi / 180.0f));
   cam.set_near_and_far(1e-4f * radius, 2 * radius);
@@ -332,6 +349,7 @@ void load_model(czstring file_path) {
   gradient_data.resize(mesh.faces.size());
   compute_voronoi_weights(mesh, gradient_data);
   compute_vertex_voronoi_area(mesh, gradient_data, illumination_data);
+  compute_vertex_tangent_system(mesh, gradient_data, illumination_data);
 }
 
 void setup_illumination_locations(const shader_program& shader) {
@@ -346,7 +364,7 @@ void setup_illumination_locations(const shader_program& shader) {
   {
     const auto location = glGetAttribLocation(shader, "lg");
     glEnableVertexAttribArray(location);
-    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE,
+    glVertexAttribPointer(location, 2, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light_gradient));
   }
