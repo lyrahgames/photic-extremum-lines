@@ -212,6 +212,11 @@ class shader_program {
 
   bool exists() const { return glIsProgram(handle) == GL_TRUE; }
 
+  auto set(czstring name, float value) -> shader_program& {
+    glUniform1f(glGetUniformLocation(handle, name), value);
+    return *this;
+  }
+
   auto set(czstring name, mat4 data) -> shader_program& {
     glUniformMatrix4fv(glGetUniformLocation(handle, name), 1, GL_FALSE,
                        value_ptr(data));

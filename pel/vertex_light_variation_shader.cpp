@@ -13,6 +13,7 @@ constexpr czstring vertex_shader_text =
     "layout (location = 2) in float l;"
     "layout (location = 3) in vec3 lg;"
     "layout (location = 4) in float lv;"
+    "layout (location = 5) in float lvs;"
 
     "out float light;"
 

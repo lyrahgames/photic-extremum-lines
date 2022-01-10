@@ -94,13 +94,14 @@ constexpr czstring geometry_shader_text =
 constexpr czstring fragment_shader_text =
     "#version 330 core\n"
 
+    "uniform float threshold;"
+
     "in float strength;"
     "in float curve;"
 
     "layout (location = 0) out vec4 frag_color;"
 
     "void main(){"
-    "  float threshold = 0.035;"
     "  float scale = 0.5;"
     "  if ((strength < threshold)) discard;"
     "  float alpha = scale * (strength - threshold) / (1.0 - threshold);"

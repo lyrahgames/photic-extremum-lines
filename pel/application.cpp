@@ -54,6 +54,13 @@ vector<illumination_info> illumination_data{};
 vector<gradient_info> gradient_data{};
 vertex_buffer illumination_buffer;
 
+float threshold = 0.01;
+float threshold_shift = -1 / log(threshold);
+
+bool illumination_should_update = true;
+
+bool control_key_pressed = false;
+
 }  // namespace
 
 void init() {
@@ -61,8 +68,23 @@ void init() {
       window,
       [](GLFWwindow* window, int width, int height) { resize(width, height); });
 
+  glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode,
+                                int action, int mods) {
+    control_key_pressed = mods & GLFW_MOD_CONTROL;
+    if ((key == GLFW_KEY_L) && (action == GLFW_PRESS))
+      feature_lines_enabled = !feature_lines_enabled;
+    if ((key == GLFW_KEY_S) && (action == GLFW_PRESS))
+      surface_shading_enabled = !surface_shading_enabled;
+    if ((key == GLFW_KEY_U) && (action == GLFW_PRESS))
+      illumination_should_update = !illumination_should_update;
+    view_should_update = true;
+  });
+
   glfwSetScrollCallback(window, [](GLFWwindow* window, double x, double y) {
-    zoom({x, y});
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+      adjust_threshold(y);
+    else
+      zoom({x, y});
   });
 
   shader = viewer_shader();
@@ -97,7 +119,7 @@ void setup() {
   // glClearColor(0.0, 0.5, 0.8, 1.0);
   glClearColor(1.0, 1.0, 1.0, 1.0);
   glPointSize(3.0f);
-  glLineWidth(2.5f);
+  glLineWidth(3.5f);
 }
 
 void process_events() {
@@ -122,10 +144,6 @@ void process_events() {
   if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) fit_view();
   if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) set_y_as_up();
   if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) set_z_as_up();
-
-  if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) {
-    update_illumination_data();
-  }
 
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
     shader = wireframe_shader();
@@ -159,14 +177,7 @@ void process_events() {
     shader = vertex_light_variation_slope_shader();
     view_should_update = true;
   }
-  if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-    surface_shading_enabled = !surface_shading_enabled;
-    view_should_update = true;
-  }
-  if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) {
-    feature_lines_enabled = !feature_lines_enabled;
-    view_should_update = true;
-  }
+
   if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
     line_shader = contours_shader();
     feature_lines_enabled = true;
@@ -231,7 +242,10 @@ void update_view() {
   line_shader.bind();
   line_shader  //
       .set("projection", cam.projection_matrix())
-      .set("view", cam.view_matrix());
+      .set("view", cam.view_matrix())
+      .set("threshold", threshold);
+
+  if (illumination_should_update) update_illumination_data();
 }
 
 void turn(const vec2& mouse_move) {
@@ -251,6 +265,12 @@ void shift(const vec2& mouse_move) {
 
 void zoom(const vec2& mouse_scroll) {
   radius *= exp(-0.1f * float(mouse_scroll.y));
+  view_should_update = true;
+}
+
+void adjust_threshold(float x) {
+  threshold_shift *= exp(-0.01f * x);
+  threshold = exp(-1.0f / threshold_shift);
   view_should_update = true;
 }
 
@@ -313,45 +333,50 @@ void load_model(czstring file_path) {
   compute_vertex_voronoi_area(mesh, gradient_data, illumination_data);
 }
 
-void update_illumination_data() {
-  compute_vertex_light(cam.direction(), mesh, illumination_data);
-  compute_vertex_light_gradient(mesh, gradient_data, illumination_data);
-  compute_vertex_light_variation_slope(mesh, gradient_data, illumination_data);
-
+void setup_illumination_locations(const shader_program& shader) {
   illumination_buffer.bind();
   {
-    const auto location = glGetAttribLocation(line_shader, "l");
+    const auto location = glGetAttribLocation(shader, "l");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light));
   }
   {
-    const auto location = glGetAttribLocation(line_shader, "lg");
+    const auto location = glGetAttribLocation(shader, "lg");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light_gradient));
   }
   {
-    const auto location = glGetAttribLocation(line_shader, "lv");
+    const auto location = glGetAttribLocation(shader, "lv");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(location, 1, GL_FLOAT, GL_FALSE,
                           sizeof(illumination_info),
                           (void*)offsetof(illumination_info, light_variation));
   }
   {
-    const auto location = glGetAttribLocation(line_shader, "lvs");
+    const auto location = glGetAttribLocation(shader, "lvs");
     glEnableVertexAttribArray(location);
     glVertexAttribPointer(
         location, 1, GL_FLOAT, GL_FALSE, sizeof(illumination_info),
         (void*)offsetof(illumination_info, light_variation_slope));
   }
+}
+
+void update_illumination_data() {
+  compute_vertex_light(cam.direction(), mesh, illumination_data);
+  compute_vertex_light_gradient(mesh, gradient_data, illumination_data);
+  compute_vertex_light_variation_slope(mesh, gradient_data, illumination_data);
+
+  setup_illumination_locations(shader);
+  setup_illumination_locations(line_shader);
+
+  illumination_buffer.bind();
   glBufferData(GL_ARRAY_BUFFER,
                illumination_data.size() * sizeof(illumination_data[0]),
                illumination_data.data(), GL_DYNAMIC_DRAW);
-
-  view_should_update = true;
 }
 
 }  // namespace application

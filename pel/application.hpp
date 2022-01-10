@@ -1,6 +1,7 @@
 #pragma once
 #include "glfw_context.hpp"
 #include "glfw_window.hpp"
+#include "shader.hpp"
 #include "utility.hpp"
 
 namespace application {
@@ -25,5 +26,8 @@ void set_y_as_up();
 
 void load_model(czstring file_path);
 void update_illumination_data();
+void setup_illumination_locations(const shader_program& shader);
+
+void adjust_threshold(float x);
 
 }  // namespace application

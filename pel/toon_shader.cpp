@@ -25,10 +25,10 @@ constexpr czstring fragment_shader_text =
 
     "void main(){"
     "  float light = abs(normalize(normal).z);"
-    "  if (light <= 0.40) light = 0.20;"
-    "  else if (light <= 0.60) light = 0.40;"
+    "  if (light <= 0.20) light = 0.20;"
+    "  else if (light <= 0.40) light = 0.40;"
+    "  else if (light <= 0.60) light = 0.60;"
     "  else if (light <= 0.80) light = 0.80;"
-    "  else if (light <= 0.90) light = 0.90;"
     "  else if (light <= 1.00) light = 1.00;"
     "  frag_color = vec4(vec3(light), 1.0);"
     "}";

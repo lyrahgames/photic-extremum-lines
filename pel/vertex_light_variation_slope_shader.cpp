@@ -21,9 +21,9 @@ constexpr czstring vertex_shader_text =
     "  gl_Position = projection * view * vec4(p, 1.0);"
     "  float light = 1 - pow(1 - abs(lvs), 100);"
     "  if (lvs < 0)"
-    "    color = light * vec4(0.8, 0.5, 0.0, 1.0);"
+    "    color = vec4(light * vec3(0.8, 0.5, 0.0), 1.0);"
     "  else"
-    "    color = light * vec4(0.0, 0.5, 0.8, 1.0);"
+    "    color = vec4(light * vec3(0.0, 0.5, 0.8), 1.0);"
     "}";
 
 constexpr czstring fragment_shader_text =
