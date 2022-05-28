@@ -94,7 +94,7 @@ constexpr czstring fragment_shader_text =
     "  if ((strength < threshold)) discard;"
     "  float alpha = scale * (strength - threshold) / (1.0 - threshold);"
     "  alpha += 1 - scale;"
-    "  frag_color = vec4(vec3(0.0), alpha);"
+    "  frag_color = vec4(vec3(0.0), 1.0);"
     "}";
 
 }  // namespace

@@ -22,7 +22,7 @@ using namespace std;
 namespace application {
 
 glfw_context context{};
-glfw_window window{800, 450, "Photic Extremum Lines"};
+glfw_window window{600, 600, "Photic Extremum Lines"};
 
 namespace {
 
@@ -41,6 +41,8 @@ float azimuth = 0;
 vec2 old_mouse_pos;
 vec2 mouse_pos;
 bool view_should_update = true;
+
+bool view_should_always_update = false;
 
 camera cam{};
 
@@ -86,6 +88,9 @@ void init() {
       surface_shading_enabled = !surface_shading_enabled;
     if ((key == GLFW_KEY_U) && (action == GLFW_PRESS))
       illumination_should_update = !illumination_should_update;
+    if ((key == GLFW_KEY_Z) && (action == GLFW_PRESS)) {
+      view_should_always_update = !view_should_always_update;
+    }
 
     view_should_update = true;
   });
@@ -102,6 +107,8 @@ void init() {
   shader = viewer_shader();
   line_shader = photic_extremum_lines_shader();
   contour_shader = contours_shader();
+
+  glfwSwapInterval(0);
 }
 
 void run() {
@@ -133,6 +140,7 @@ void setup() {
   glClearColor(1.0, 1.0, 1.0, 1.0);
   glPointSize(3.0f);
   glLineWidth(2.5f);
+  // glLineWidth(5.0f);
 }
 
 void process_events() {
@@ -199,7 +207,26 @@ void resize(int width, int height) {
 }
 
 void update() {
-  if (view_should_update) {
+  using clock = std::chrono::high_resolution_clock;
+  static auto time = clock::now();
+  static size_t frames = 0;
+  const auto new_time = clock::now();
+  const auto dt = duration<double>(new_time - time).count();
+  if (dt > 1.0f) {
+    const auto frame_time = dt / frames;
+    const auto fps = 1 / frame_time;
+
+    cout << "frame time = " << 1000 * frame_time << " ms\n"
+         << "fps = " << fps << '\n'
+         << endl;
+
+    time = new_time;
+    frames = 0;
+  } else {
+    ++frames;
+  }
+
+  if (view_should_always_update || view_should_update) {
     update_view();
     view_should_update = false;
   }
@@ -293,7 +320,7 @@ void adjust_threshold(float x) {
 }
 
 void adjust_shift(float x) {
-  line_shift *= exp(-0.01f * x);
+  line_shift *= exp(-0.1f * x);
   view_should_update = true;
 }
 
